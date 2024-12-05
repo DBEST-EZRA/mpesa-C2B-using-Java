@@ -1,8 +1,10 @@
+import javax.net.ssl.HttpsURLConnection;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.Security;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Scanner;
@@ -26,7 +28,7 @@ public class MpesaIntegration {
                 String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
                 String dataToEncode = BUSINESS_SHORT_CODE + PASSKEY + timestamp;
                 BASE64Encoder encoder = new BASE64Encoder();
-                String encodedPassword = encoder.encode(dataToEncode.getBytes("UTF-8"));
+                String encodedPassword = encoder.encode(dataToEncode.getBytes("UTF-8")).replace("\n", "").replace("\r", "");
                 return encodedPassword + "," + timestamp;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -37,12 +39,17 @@ public class MpesaIntegration {
 
     public static String generateToken() {
         try {
+            // Enable TLS 1.2 explicitly
+            Security.setProperty("jdk.tls.client.protocols", "TLSv1.2");
+
             URL url = new URL(MpesaC2bCredential.API_URL);
             String credentials = MpesaC2bCredential.CONSUMER_KEY + ":" + MpesaC2bCredential.CONSUMER_SECRET;
             BASE64Encoder encoder = new BASE64Encoder();
-            String basicAuth = "Basic " + encoder.encode(credentials.getBytes("UTF-8"));
+            String encodedCredentials = encoder.encode(credentials.getBytes("UTF-8")).replace("\n", "").replace("\r", "");
+            String basicAuth = "Basic " + encodedCredentials;
 
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+            conn.setSSLSocketFactory((javax.net.ssl.SSLSocketFactory) javax.net.ssl.SSLSocketFactory.getDefault());
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Authorization", basicAuth);
 
@@ -96,7 +103,7 @@ public class MpesaIntegration {
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
 
-            // Construct JSON manually
+            // Construct JSON payload manually
             String payload = "{"
                     + "\"BusinessShortCode\":\"" + LipanaMpesaPassword.BUSINESS_SHORT_CODE + "\","
                     + "\"Password\":\"" + password + "\","
