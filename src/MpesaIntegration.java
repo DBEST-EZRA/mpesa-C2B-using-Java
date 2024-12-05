@@ -14,8 +14,8 @@ import org.json.JSONObject;
 public class MpesaIntegration {
 
     static class MpesaC2bCredential {
-        static final String CONSUMER_KEY = "add yours";
-        static final String CONSUMER_SECRET = "add yours";
+        static final String CONSUMER_KEY = "AqMIux0qLIIbZtGh5cBm3cqhtKfyZx22ScWW4A4utPPEturA";
+        static final String CONSUMER_SECRET = "UUkorbR2oGPNWxj4NBlb7LHM6f8rRlxb0HZr0IqL0zAJxW1nFHkJ2V7NQsR41O4b";
         static final String API_URL = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
     }
 
