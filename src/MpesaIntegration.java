@@ -3,13 +3,11 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.Base64;
 import java.util.Date;
 import java.util.Scanner;
 
-import org.json.JSONObject;
+import sun.misc.BASE64Encoder;
 
 public class MpesaIntegration {
 
@@ -27,7 +25,8 @@ public class MpesaIntegration {
             try {
                 String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
                 String dataToEncode = BUSINESS_SHORT_CODE + PASSKEY + timestamp;
-                String encodedPassword = Base64.getEncoder().encodeToString(dataToEncode.getBytes(StandardCharsets.UTF_8));
+                BASE64Encoder encoder = new BASE64Encoder();
+                String encodedPassword = encoder.encode(dataToEncode.getBytes("UTF-8"));
                 return encodedPassword + "," + timestamp;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -40,27 +39,29 @@ public class MpesaIntegration {
         try {
             URL url = new URL(MpesaC2bCredential.API_URL);
             String credentials = MpesaC2bCredential.CONSUMER_KEY + ":" + MpesaC2bCredential.CONSUMER_SECRET;
-            String basicAuth = "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+            BASE64Encoder encoder = new BASE64Encoder();
+            String basicAuth = "Basic " + encoder.encode(credentials.getBytes("UTF-8"));
 
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Authorization", basicAuth);
 
             BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            String inputLine;
             StringBuilder content = new StringBuilder();
+            String line;
 
-            while ((inputLine = in.readLine()) != null) {
-                content.append(inputLine);
+            while ((line = in.readLine()) != null) {
+                content.append(line);
             }
 
             in.close();
             conn.disconnect();
 
-            JSONObject response = new JSONObject(content.toString());
-            String accessToken = response.getString("access_token");
-            System.out.println("Generated Token: " + accessToken);
-            return accessToken;
+            // Manually extract "access_token" from the JSON response
+            String response = content.toString();
+            String token = extractValue(response, "access_token");
+            System.out.println("Generated Token: " + token);
+            return token;
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -95,30 +96,32 @@ public class MpesaIntegration {
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
 
-            JSONObject payload = new JSONObject();
-            payload.put("BusinessShortCode", LipanaMpesaPassword.BUSINESS_SHORT_CODE);
-            payload.put("Password", password);
-            payload.put("Timestamp", timestamp);
-            payload.put("TransactionType", "CustomerPayBillOnline");
-            payload.put("Amount", amount);
-            payload.put("PartyA", phoneNumber);
-            payload.put("PartyB", LipanaMpesaPassword.BUSINESS_SHORT_CODE);
-            payload.put("PhoneNumber", phoneNumber);
-            payload.put("CallBackURL", "https://sandbox.safaricom.co.ke/mpesa/");
-            payload.put("AccountReference", "Beta Designs");
-            payload.put("TransactionDesc", "Development Charges");
+            // Construct JSON manually
+            String payload = "{"
+                    + "\"BusinessShortCode\":\"" + LipanaMpesaPassword.BUSINESS_SHORT_CODE + "\","
+                    + "\"Password\":\"" + password + "\","
+                    + "\"Timestamp\":\"" + timestamp + "\","
+                    + "\"TransactionType\":\"CustomerPayBillOnline\","
+                    + "\"Amount\":\"" + amount + "\","
+                    + "\"PartyA\":\"" + phoneNumber + "\","
+                    + "\"PartyB\":\"" + LipanaMpesaPassword.BUSINESS_SHORT_CODE + "\","
+                    + "\"PhoneNumber\":\"" + phoneNumber + "\","
+                    + "\"CallBackURL\":\"https://sandbox.safaricom.co.ke/mpesa/\","
+                    + "\"AccountReference\":\"Beta Designs\","
+                    + "\"TransactionDesc\":\"Development Charges\""
+                    + "}";
 
             OutputStream os = conn.getOutputStream();
-            os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+            os.write(payload.getBytes("UTF-8"));
             os.flush();
             os.close();
 
             BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            String inputLine;
             StringBuilder content = new StringBuilder();
+            String line;
 
-            while ((inputLine = in.readLine()) != null) {
-                content.append(inputLine);
+            while ((line = in.readLine()) != null) {
+                content.append(line);
             }
 
             in.close();
@@ -128,6 +131,19 @@ public class MpesaIntegration {
 
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    // Helper method to extract values from a JSON string manually
+    private static String extractValue(String json, String key) {
+        try {
+            String searchKey = "\"" + key + "\":\"";
+            int startIndex = json.indexOf(searchKey) + searchKey.length();
+            int endIndex = json.indexOf("\"", startIndex);
+            return json.substring(startIndex, endIndex);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
